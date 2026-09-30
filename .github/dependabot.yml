@@ -6,6 +6,10 @@
 # `pnpm verify` (including `pnpm check:deps`) and the mutation job. The template
 # does not require an approving review, so solo maintainers can merge after the
 # gates pass. Nothing here merges itself.
+#
+# This file configures version updates only. Security updates, which also
+# cover transitive dependencies, are a repository switch declared in
+# infra/github/repository-settings.json.
 version: 2
 
 updates:

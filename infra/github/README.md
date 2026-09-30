@@ -27,6 +27,15 @@ The local command obtains the GitHub API token from the authenticated `gh`
 account. That token must have the repository administration and secret metadata
 read permissions required by the GitHub API.
 
+`vulnerability_alerts` and `automated_security_fixes` in
+`repository-settings.json` are Dependabot switches rather than repository
+fields: the script sets them through their own endpoints and checks them for
+drift the same way. Security updates open fix pull requests for vulnerable
+transitive dependencies, which the version updates in
+`.github/dependabot.yml` do not cover, so a newly published advisory arrives
+as a pull request instead of only as a red scheduled `check:deps`. The
+dependency-policy gate itself is unchanged.
+
 The required `GH_ADMIN_TOKEN` secret is used by drift checks and the apply
 workflow. It must have the repository administration and secret metadata read
 permissions required by the GitHub API. The `production` reviewer list is

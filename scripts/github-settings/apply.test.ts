@@ -317,4 +317,105 @@ describe('applyConfiguration', () => {
       { wait_timer: 5 },
     );
   });
+
+  describe('security features', () => {
+    function withSwitches(
+      alerts: boolean | undefined,
+      fixes: boolean | undefined,
+    ): DesiredConfiguration {
+      return configuration({
+        repository: {
+          default_branch: 'main',
+          vulnerability_alerts: alerts,
+          automated_security_fixes: fixes,
+        },
+      });
+    }
+
+    const switchPaths = new Set([
+      '/vulnerability-alerts',
+      '/automated-security-fixes',
+    ]);
+
+    function switchCalls(): (readonly [string, string])[] {
+      const calls = requestMock.mock.calls as [unknown, string, string][];
+      return calls
+        .filter(([, path]) => switchPaths.has(path))
+        .map(([, path, method]) => [path, method] as const);
+    }
+
+    function refuseSecurityUpdates(
+      _reference: unknown,
+      path: string,
+    ): Promise<{ status: number; body: unknown }> {
+      return Promise.resolve(
+        path === '/automated-security-fixes'
+          ? { status: 422, body: { message: 'Alerts are disabled' } }
+          : { status: 200, body: {} },
+      );
+    }
+
+    it('leaves undeclared switches alone', async () => {
+      await applyConfiguration(reference, configuration());
+      expect(switchCalls()).toStrictEqual([]);
+    });
+
+    it('keeps the switches out of the repository PATCH body', async () => {
+      await applyConfiguration(reference, withSwitches(true, true));
+      expect(requestMock).toHaveBeenNthCalledWith(1, reference, '', 'PATCH', {
+        default_branch: 'main',
+      });
+    });
+
+    it('enables alerts before the security updates that depend on them', async () => {
+      await applyConfiguration(reference, withSwitches(true, true));
+      expect(switchCalls()).toStrictEqual([
+        ['/vulnerability-alerts', 'PUT'],
+        ['/automated-security-fixes', 'PUT'],
+      ]);
+    });
+
+    it('disables security updates before the alerts they depend on', async () => {
+      await applyConfiguration(reference, withSwitches(false, false));
+      expect(switchCalls()).toStrictEqual([
+        ['/automated-security-fixes', 'DELETE'],
+        ['/vulnerability-alerts', 'DELETE'],
+      ]);
+    });
+
+    it('can keep alerts on while security updates are off', async () => {
+      await applyConfiguration(reference, withSwitches(true, false));
+      expect(switchCalls()).toStrictEqual([
+        ['/vulnerability-alerts', 'PUT'],
+        ['/automated-security-fixes', 'DELETE'],
+      ]);
+    });
+
+    it('applies a lone declared switch', async () => {
+      await applyConfiguration(reference, withSwitches(undefined, true));
+      expect(switchCalls()).toStrictEqual([
+        ['/automated-security-fixes', 'PUT'],
+      ]);
+    });
+
+    it('logs each switch after the repository settings', async () => {
+      await applyConfiguration(reference, withSwitches(true, false));
+      expect(
+        vi.mocked(console.log).mock.calls.flat().slice(0, 3),
+      ).toStrictEqual([
+        'Applied repository settings.',
+        'Enabled vulnerability_alerts.',
+        'Disabled automated_security_fixes.',
+      ]);
+    });
+
+    it('names the switch GitHub refused', async () => {
+      requestMock.mockImplementation(refuseSecurityUpdates);
+      await expect(
+        applyConfiguration(reference, withSwitches(true, true)),
+      ).rejects.toThrow(
+        'Applying automated_security_fixes failed with HTTP 422: Alerts are disabled',
+      );
+    });
+  });
 });

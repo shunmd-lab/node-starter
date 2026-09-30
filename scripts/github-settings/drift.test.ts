@@ -356,4 +356,117 @@ describe('runRemoteCheck', () => {
       'environment production is missing',
     );
   });
+
+  describe('security features', () => {
+    const declared = configuration({
+      repository: {
+        default_branch: 'main',
+        vulnerability_alerts: true,
+        automated_security_fixes: true,
+      },
+    });
+
+    function securityResponses(
+      alerts: { status: number; body?: unknown },
+      fixes: { status: number; body?: unknown },
+    ): void {
+      respondWith();
+      const fallback = requestMock.getMockImplementation() as (
+        requestReference: unknown,
+        path: string,
+      ) => Promise<unknown>;
+      const switches: Record<string, unknown> = {
+        '/vulnerability-alerts': alerts,
+        '/automated-security-fixes': fixes,
+      };
+      requestMock.mockImplementation(
+        (requestReference: unknown, path: string): Promise<unknown> =>
+          path in switches
+            ? Promise.resolve(switches[path])
+            : fallback(requestReference, path),
+      );
+    }
+
+    function requestedPaths(): string[] {
+      const calls = requestMock.mock.calls as [unknown, string][];
+      return calls.map(([, path]) => path);
+    }
+
+    it('reads nothing when no switch is declared', async () => {
+      await runRemoteCheck(reference, configuration());
+      const paths = requestedPaths();
+      expect(paths).not.toContain('/vulnerability-alerts');
+      expect(paths).not.toContain('/automated-security-fixes');
+    });
+
+    it('matches when both switches are on', async () => {
+      securityResponses(
+        { status: 204 },
+        { status: 200, body: { enabled: true, paused: false } },
+      );
+      await expect(
+        runRemoteCheck(reference, declared),
+      ).resolves.toBeUndefined();
+    });
+
+    it('reports alerts that are off, and security updates unavailable because of it', async () => {
+      securityResponses({ status: 404 }, { status: 404 });
+      await expect(runRemoteCheck(reference, declared)).rejects.toThrow(
+        'repository security features\n  desired: {"automated_security_fixes":true,"vulnerability_alerts":true}\n  actual:  {"automated_security_fixes":false,"vulnerability_alerts":false}',
+      );
+    });
+
+    it('reports security updates that are switched off', async () => {
+      securityResponses(
+        { status: 204 },
+        { status: 200, body: { enabled: false } },
+      );
+      await expect(runRemoteCheck(reference, declared)).rejects.toThrow(
+        '"automated_security_fixes":false,"vulnerability_alerts":true}',
+      );
+    });
+
+    it('matches a switch that is declared off and is off', async () => {
+      securityResponses({ status: 404 }, { status: 404 });
+      await expect(
+        runRemoteCheck(
+          reference,
+          configuration({
+            repository: {
+              default_branch: 'main',
+              vulnerability_alerts: false,
+              automated_security_fixes: false,
+            },
+          }),
+        ),
+      ).resolves.toBeUndefined();
+    });
+
+    it('names the switch when GitHub refuses to report it', async () => {
+      securityResponses(
+        { status: 403, body: { message: 'Must have admin rights' } },
+        { status: 200, body: { enabled: true } },
+      );
+      await expect(runRemoteCheck(reference, declared)).rejects.toThrow(
+        'Reading vulnerability_alerts failed with HTTP 403: Must have admin rights',
+      );
+    });
+
+    it('rejects a security updates response without an enabled flag', async () => {
+      securityResponses(
+        { status: 204 },
+        { status: 200, body: { enabled: 'yes' } },
+      );
+      await expect(runRemoteCheck(reference, declared)).rejects.toThrow(
+        'Reading automated_security_fixes returned an invalid response',
+      );
+    });
+
+    it('rejects a security updates response that is not an object', async () => {
+      securityResponses({ status: 204 }, { status: 200, body: null });
+      await expect(runRemoteCheck(reference, declared)).rejects.toThrow(
+        'Reading automated_security_fixes returned an invalid response',
+      );
+    });
+  });
 });

@@ -100,7 +100,10 @@ export async function request(
     requestInit.body = JSON.stringify(body);
   }
   const response = await fetch(apiUrl(reference, path), requestInit);
-  const responseBody: unknown = await response.json();
+  // The Dependabot switch endpoints answer 204 No Content, which has no JSON
+  // body to parse.
+  const responseBody: unknown =
+    response.status === 204 ? undefined : await response.json();
   return { status: response.status, body: responseBody };
 }
 

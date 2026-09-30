@@ -108,6 +108,21 @@ describe('request', () => {
     expect(new Headers(init.headers).get('Content-Type')).toBeNull();
   });
 
+  it('returns no body for a 204 without trying to parse one', async () => {
+    const json = vi.fn(() => Promise.reject(new Error('no body')));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({ status: 204, json } as unknown as Response),
+      ),
+    );
+
+    await expect(
+      request(reference, '/vulnerability-alerts'),
+    ).resolves.toStrictEqual({ status: 204, body: undefined });
+    expect(json).not.toHaveBeenCalled();
+  });
+
   it('serializes a body and sets its content type', async () => {
     const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(201, {})));
     vi.stubGlobal('fetch', fetchMock);

@@ -12,6 +12,7 @@ import {
 import { isNumber, isRecord, isString } from '../lib/github-settings-schema.ts';
 import {
   repositoryFields,
+  repositorySecurityFeatures,
   type DesiredConfiguration,
   type RepositoryReference,
 } from '../lib/github-settings-types.ts';
@@ -34,6 +35,31 @@ export function assertApplyIsAuthorized(): void {
     throw new Error(
       'Apply is restricted to workflow_dispatch on main or ALLOW_GITHUB_SETTINGS_APPLY=1',
     );
+  }
+}
+
+/**
+ * Security updates depend on vulnerability alerts, so switches are enabled in
+ * dependency order and disabled in reverse. Undeclared switches are left as
+ * they are.
+ */
+async function applySecurityFeatures(
+  reference: RepositoryReference,
+  configuration: DesiredConfiguration,
+): Promise<void> {
+  const declared = repositorySecurityFeatures.filter(
+    ({ field }) => typeof configuration.repository[field] === 'boolean',
+  );
+  const enablingAlerts =
+    configuration.repository['vulnerability_alerts'] !== false;
+  const ordered = enablingAlerts ? declared : [...declared].reverse();
+  for (const { field, path } of ordered) {
+    const enabled = configuration.repository[field] === true;
+    requireApiSuccess(
+      await request(reference, path, enabled ? 'PUT' : 'DELETE'),
+      `Applying ${field}`,
+    );
+    console.log(`${enabled ? 'Enabled' : 'Disabled'} ${field}.`);
   }
 }
 
@@ -120,6 +146,8 @@ export async function applyConfiguration(
     'Applying repository settings',
   );
   console.log('Applied repository settings.');
+
+  await applySecurityFeatures(reference, configuration);
 
   await applyRulesets(reference, configuration);
   await applyEnvironments(reference, configuration);

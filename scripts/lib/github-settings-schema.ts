@@ -9,6 +9,7 @@ import {
   pullRequestRuleFields,
   repositoryBooleanFields,
   repositoryFields,
+  repositorySecurityFeatures,
   repositoryStringFields,
   requiredStatusChecksParameterFields,
   rulesetRuleTypes,
@@ -80,7 +81,10 @@ export function validateRepository(
 
   assertAllowedKeys(
     value,
-    new Set(repositoryFields),
+    new Set([
+      ...repositoryFields,
+      ...repositorySecurityFeatures.map(({ field }) => field),
+    ]),
     'repository-settings.json',
     errors,
   );
@@ -96,6 +100,12 @@ export function validateRepository(
     }
     if (repositoryStringFields.has(field) && !isString(fieldValue)) {
       errors.push(`repository-settings.json.${field} must be a string`);
+    }
+  }
+
+  for (const { field } of repositorySecurityFeatures) {
+    if (!isBoolean(value[field])) {
+      errors.push(`repository-settings.json.${field} must be a boolean`);
     }
   }
 

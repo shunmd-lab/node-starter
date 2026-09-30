@@ -21,6 +21,7 @@ import {
 } from '../lib/github-settings-schema.ts';
 import {
   repositoryFields,
+  repositorySecurityFeatures,
   type DesiredConfiguration,
   type EnvironmentSummary,
   type RepositoryReference,
@@ -46,10 +47,52 @@ async function checkRepositoryDrift(
   }
   reportDrift(
     'repository settings',
-    configuration.repository,
+    selectFields(configuration.repository, repositoryFields),
     selectFields(response, repositoryFields),
     drifts,
   );
+}
+
+/**
+ * Each switch reads back differently: vulnerability alerts answer 204 when
+ * enabled and 404 when disabled; security updates answer 200 with an
+ * `enabled` flag, or 404 while alerts are off. Only declared switches are
+ * read, so an undeclared one stays unmanaged like every other setting.
+ */
+async function readSecurityFeature(
+  reference: RepositoryReference,
+  field: string,
+  path: string,
+): Promise<boolean> {
+  const response = await request(reference, path);
+  if (response.status === 404) {
+    return false;
+  }
+  const body = requireApiSuccess(response, `Reading ${field}`);
+  if (response.status === 204) {
+    return true;
+  }
+  if (!isRecord(body) || typeof body['enabled'] !== 'boolean') {
+    throw new Error(`Reading ${field} returned an invalid response`);
+  }
+  return body['enabled'];
+}
+
+async function checkSecurityFeatureDrift(
+  reference: RepositoryReference,
+  configuration: DesiredConfiguration,
+  drifts: string[],
+): Promise<void> {
+  const desired: Record<string, unknown> = {};
+  const actual: Record<string, unknown> = {};
+  for (const { field, path } of repositorySecurityFeatures) {
+    if (configuration.repository[field] === undefined) {
+      continue;
+    }
+    desired[field] = configuration.repository[field];
+    actual[field] = await readSecurityFeature(reference, field, path);
+  }
+  reportDrift('repository security features', desired, actual, drifts);
 }
 
 async function checkRulesetDrift(
@@ -186,6 +229,7 @@ async function checkRemote(
 ): Promise<string[]> {
   const drifts: string[] = [];
   await checkRepositoryDrift(reference, configuration, drifts);
+  await checkSecurityFeatureDrift(reference, configuration, drifts);
   await checkRulesetDrift(reference, configuration, drifts);
   await checkEnvironmentDrift(reference, configuration, drifts);
   await checkSecretDrift(reference, configuration, drifts);

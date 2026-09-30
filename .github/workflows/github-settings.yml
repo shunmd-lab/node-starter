@@ -37,6 +37,9 @@ jobs:
           version: 2026.8.1
           cache: true
 
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Compare with GitHub
         run: node scripts/github-settings.ts --check --remote
 
@@ -69,6 +72,9 @@ jobs:
         with:
           version: 2026.8.1
           cache: true
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Apply desired state
         run: node scripts/github-settings.ts --apply
