@@ -34,6 +34,7 @@ import {
 } from './github-settings-schema.ts';
 import {
   repositoryBooleanFields,
+  repositorySecurityFeatures,
   repositoryStringFields,
   type JsonObject,
 } from './github-settings-types.ts';
@@ -53,6 +54,8 @@ function compliantRepository(): JsonObject {
     use_squash_pr_title_as_default: true,
     squash_merge_commit_title: 'PR_TITLE',
     squash_merge_commit_message: 'PR_BODY',
+    vulnerability_alerts: true,
+    automated_security_fixes: true,
   };
 }
 
@@ -197,6 +200,22 @@ describe('validateRepository', () => {
       const errors: string[] = [];
       validateRepository(value, errors);
       expect(errors).toStrictEqual([
+        `repository-settings.json.${field} must be a boolean`,
+      ]);
+    },
+  );
+
+  it.each(repositorySecurityFeatures.map(({ field }) => field))(
+    'requires the %s switch as a boolean',
+    (field) => {
+      const missing = Object.fromEntries(
+        Object.entries(compliantRepository()).filter(([key]) => key !== field),
+      );
+      const errors: string[] = [];
+      validateRepository(missing, errors);
+      validateRepository({ ...compliantRepository(), [field]: 'on' }, errors);
+      expect(errors).toStrictEqual([
+        `repository-settings.json.${field} must be a boolean`,
         `repository-settings.json.${field} must be a boolean`,
       ]);
     },

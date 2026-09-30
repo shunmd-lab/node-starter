@@ -59,6 +59,20 @@ export const repositoryFields = [
   'squash_merge_commit_message',
 ] as const;
 
+/**
+ * Dependabot switches declared alongside the repository fields but managed
+ * through their own endpoints: `PATCH /repos` does not accept them and
+ * `GET /repos` does not report them. Security updates open fix pull requests
+ * for vulnerable transitive dependencies, which the weekly version-update
+ * schedule in .github/dependabot.yml never touches, so a new advisory stops
+ * turning the scheduled `check:deps` red until someone upgrades by hand.
+ * Listed in dependency order: security updates require vulnerability alerts.
+ */
+export const repositorySecurityFeatures = [
+  { field: 'vulnerability_alerts', path: '/vulnerability-alerts' },
+  { field: 'automated_security_fixes', path: '/automated-security-fixes' },
+] as const;
+
 export const repositoryBooleanFields = new Set([
   'has_issues',
   'has_projects',
