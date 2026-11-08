@@ -34,40 +34,6 @@
     ]
   },
   "vulnerabilities": {
-    "exceptions": [
-      {
-        "advisory": "GHSA-q8mj-m7cp-5q26",
-        "package": "qs",
-        "paths": [
-          ".>@stryker-mutator/core>typed-rest-client>qs",
-          ".>@stryker-mutator/vitest-runner>@stryker-mutator/core>typed-rest-client>qs"
-        ],
-        "reason": "Denial of service in qs.stringify, reached only through @stryker-mutator/core's HTTP client during mutation testing. This repository never passes attacker-controlled input to it, and the package is a devDependency that is not shipped. No patched release is reachable without waiting for StrykerJS to update typed-rest-client.",
-        "owner": "repository maintainer",
-        "reviewBy": "2026-11-30"
-      },
-      {
-        "advisory": "GHSA-x5fp-wj9c-mxmx",
-        "package": "qs",
-        "paths": [
-          ".>@stryker-mutator/core>typed-rest-client>qs",
-          ".>@stryker-mutator/vitest-runner>@stryker-mutator/core>typed-rest-client>qs"
-        ],
-        "reason": "Array-limit bypass in qs's bracket-key comma parsing, reached only through @stryker-mutator/core's HTTP client during mutation testing. This repository never passes attacker-controlled input to it, and the package is a devDependency that is not shipped. typed-rest-client pins qs to an exact version, so no patched release is reachable without waiting for StrykerJS to update typed-rest-client.",
-        "owner": "repository maintainer",
-        "reviewBy": "2026-11-30"
-      },
-      {
-        "advisory": "GHSA-4mjr-xmp4-gh2g",
-        "package": "qs",
-        "paths": [
-          ".>@stryker-mutator/core>typed-rest-client>qs",
-          ".>@stryker-mutator/vitest-runner>@stryker-mutator/core>typed-rest-client>qs"
-        ],
-        "reason": "Denial of service via attacker-controlled isBuffer in qs, reached only through @stryker-mutator/core's HTTP client during mutation testing. This repository never passes attacker-controlled input to it, and the package is a devDependency that is not shipped. typed-rest-client pins qs to an exact version, so no patched release is reachable without waiting for StrykerJS to update typed-rest-client.",
-        "owner": "repository maintainer",
-        "reviewBy": "2026-11-30"
-      }
-    ]
+    "exceptions": []
   }
 }

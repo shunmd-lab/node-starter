@@ -73,6 +73,20 @@ overrides:
   # build-time Vite/Vitest dependency), whose lockfile entry stays on the
   # vulnerable 1.2.1 otherwise; 1.2.2 is the patched release.
   source-map-js: ^1.2.2
+  # GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-587h-7wmj-h5pm,
+  # GHSA-9jrq-w75r-8gcw, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg: vite
+  # 8.2.0-8.2.3 (dev server / launch-editor issues). Reached via
+  # @vitest/mocker, whose lockfile entry stays on 8.2.1 otherwise; 8.2.4 is
+  # the patched release.
+  vite: ^8.2.4
+  # GHSA-6pq8-jhm2-2vcw: qs.stringify denial of service. Reached via
+  # typed-rest-client (a Stryker dependency) whose range stops at 6.15.x;
+  # 6.16.1 is the patched release.
+  qs: ^6.16.1
+  # GHSA-g3hv-75wg-m249: minimatch globparts amplification denial of service.
+  # Reached via @eslint/config-array, which still declares ^10; no 10.x fix
+  # exists, so 11.0.1 (the first patched release) is forced across the major.
+  minimatch: ^11.0.1
 
 # --- Install-time script execution -------------------------------------------
 
